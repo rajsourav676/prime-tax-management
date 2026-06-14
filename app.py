@@ -609,5 +609,8 @@ def export(what):
     if rows: w.writerow(rows[0].keys()); [w.writerow(list(r)) for r in rows]
     c.close(); mem=io.BytesIO(out.getvalue().encode()); return send_file(mem, as_attachment=True, download_name=what+'.csv')
 
-if __name__=='__main__':
-    init_db(); app.run(host='127.0.0.1', port=5000, debug=True)
+if __name__=="__main__":
+    import os
+    init_db()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
