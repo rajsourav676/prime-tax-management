@@ -5,7 +5,7 @@ from functools import wraps
 APP_NAME='PRIME TAX MANAGEMENT'
 TAGLINE='Complete Accounting & Tax Office Solution'
 DB=os.path.join(os.path.dirname(__file__),'ptm.db')
-app=Flask(__name__)
+app=Flask(__name__, template_folder='.', static_folder='.')
 app.secret_key='prime-tax-management-secret'
 
 GROUPS=['Capital Account','Loans','Current Liabilities','Sundry Creditors','Duties & Taxes','Current Assets','Bank Accounts','Cash-in-Hand','Sundry Debtors','Purchase Accounts','Sales Accounts','Direct Expenses','Indirect Expenses','Direct Incomes','Indirect Incomes','Stock-in-Hand']
