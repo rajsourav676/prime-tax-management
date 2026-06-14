@@ -1,4 +1,4 @@
-Prime Tax Management V9 - Alt+C Master Create
+Prime Tax Management V20 - Invoice Print After Save
 
 Run:
 1. Extract ZIP
@@ -6,13 +6,19 @@ Run:
 3. Browser open: http://127.0.0.1:5000
 4. Login: admin / 1234
 
-New in V9:
-- Voucher entry fields me Alt+C se Ledger Create
-- Invoice Party / Pay Ledger field me Alt+C se Ledger Create
-- Invoice Item field me Alt+C se Stock Item Create
-- Stock Item create popup ke Unit field me Alt+C se Unit Create
-- Create ke baad field me automatic select
-- Shortcut Help me Alt+C add
+Added in V20:
+- Sales/Purchase/Credit Note/Debit Note save ke baad Print Now screen
+- Invoice list me Print button
+- A4 GST Invoice print page
+- HSN, Qty, Unit, Rate, Taxable, CGST, SGST, IGST, Grand Total
+- Ctrl+P print support
+- ESC back support
 
-Flow:
-Login -> Company Create/Open -> Voucher/Invoice -> field select -> Alt+C
+Checked:
+- Login
+- Company create/open
+- Item master with HSN
+- Sales invoice save
+- Print option page
+- Invoice print page
+- Invoice list Print button route

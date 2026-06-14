@@ -1,11 +1,11 @@
 from flask import Flask, render_template, request, redirect, url_for, session, flash, send_file, jsonify
-import sqlite3, os, csv, io, zipfile, datetime
+import sqlite3, os, csv, io, zipfile, datetime, re, xml.etree.ElementTree as ET
 from functools import wraps
 
 APP_NAME='PRIME TAX MANAGEMENT'
 TAGLINE='Complete Accounting & Tax Office Solution'
 DB=os.path.join(os.path.dirname(__file__),'ptm.db')
-app=Flask(__name__, template_folder='.', static_folder='.', static_url_path='')
+app=Flask(__name__)
 app.secret_key='prime-tax-management-secret'
 
 GROUPS=['Capital Account','Loans','Current Liabilities','Sundry Creditors','Duties & Taxes','Current Assets','Bank Accounts','Cash-in-Hand','Sundry Debtors','Purchase Accounts','Sales Accounts','Direct Expenses','Indirect Expenses','Direct Incomes','Indirect Incomes','Stock-in-Hand']
@@ -34,6 +34,7 @@ def init_db():
     cur.execute('CREATE TABLE IF NOT EXISTS invoice_payments(id INTEGER PRIMARY KEY, company_id INTEGER, invoice_id INTEGER, pdate TEXT, ledger TEXT, amount REAL, narration TEXT)')
     cur.execute('CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY, ts TEXT, user TEXT, action TEXT)')
     cur.execute('CREATE TABLE IF NOT EXISTS gst_rates(id INTEGER PRIMARY KEY, company_id INTEGER, name TEXT, rate REAL, hsn_sac TEXT)')
+    cur.execute('CREATE TABLE IF NOT EXISTS auto_uploads(id INTEGER PRIMARY KEY, company_id INTEGER, filename TEXT, raw_text TEXT, created_at TEXT)')
     cur.execute('CREATE TABLE IF NOT EXISTS client_payments(id INTEGER PRIMARY KEY, client_id INTEGER, pdate TEXT, amount REAL, mode TEXT, remarks TEXT)')
     cur.execute('INSERT OR IGNORE INTO users(username,password,role) VALUES("admin","1234","Admin")')
     c.commit(); c.close()
@@ -92,6 +93,7 @@ def companies():
     if request.method=='POST':
         d=request.form; cur=c.execute('INSERT INTO companies(name,owner,gstin,pan,address,fy_start,fy_end,created_at) VALUES(?,?,?,?,?,?,?,?)',(d['name'],d.get('owner',''),d.get('gstin',''),d.get('pan',''),d.get('address',''),d.get('fy_start','2025-04-01'),d.get('fy_end','2026-03-31'),datetime.date.today().isoformat()))
         cid=cur.lastrowid; c.commit(); ensure_defaults(cid); log('Company Created '+d['name']); flash('Company Created')
+        c.close(); return redirect(url_for('companies'))
     rows=c.execute('SELECT * FROM companies ORDER BY id DESC').fetchall(); c.close(); return render_template('companies.html', rows=rows)
 @app.route('/open_company/<int:cid>')
 @login_required
@@ -129,7 +131,7 @@ def masters(kind):
         elif kind=='unit': c.execute('INSERT INTO units(company_id,symbol,formal_name) VALUES(?,?,?)',(cid,d['symbol'],d.get('formal_name','')))
         elif kind=='ledger': c.execute('INSERT INTO ledgers(company_id,name,group_name,gstin,mobile,opening,drcr) VALUES(?,?,?,?,?,?,?)',(cid,d['name'],d['group_name'],d.get('gstin',''),d.get('mobile',''),float(d.get('opening') or 0),d.get('drcr','Dr')))
         elif kind=='item': c.execute('INSERT INTO items(company_id,name,unit,hsn,gst_rate,opening_qty,opening_rate,reorder) VALUES(?,?,?,?,?,?,?,?)',(cid,d['name'],d.get('unit','Nos'),d.get('hsn',''),float(d.get('gst_rate') or 0),float(d.get('opening_qty') or 0),float(d.get('opening_rate') or 0),float(d.get('reorder') or 0)))
-        c.commit(); flash('Saved')
+        c.commit(); flash('Saved'); c.close(); return redirect(url_for('masters', kind=kind))
     data={'group':('groups','SELECT * FROM groups WHERE company_id=?'), 'unit':('units','SELECT * FROM units WHERE company_id=?'), 'ledger':('ledgers','SELECT * FROM ledgers WHERE company_id=?'), 'item':('items','SELECT * FROM items WHERE company_id=?')}[kind]
     rows=c.execute(data[1],(cid,)).fetchall(); groups=c.execute('SELECT name FROM groups WHERE company_id=?',(cid,)).fetchall(); units=c.execute('SELECT symbol FROM units WHERE company_id=?',(cid,)).fetchall(); c.close()
     return render_template('masters.html', kind=kind, rows=rows, groups=groups, units=units)
@@ -194,7 +196,7 @@ def gst_rates():
     if request.method=='POST':
         d=request.form
         c.execute('INSERT INTO gst_rates(company_id,name,rate,hsn_sac) VALUES(?,?,?,?)',(cid,d.get('name') or ('GST '+str(d.get('rate','0'))+'%'),safe_amount(d.get('rate')),d.get('hsn_sac','')))
-        c.commit(); flash('GST Rate/HSN Saved')
+        c.commit(); flash('GST Rate/HSN Saved'); c.close(); return redirect(url_for('gst_rates'))
     rows=c.execute('SELECT * FROM gst_rates WHERE company_id=? ORDER BY rate,name',(cid,)).fetchall(); c.close()
     return render_template('gst_rates.html', rows=rows)
 
@@ -245,7 +247,7 @@ def next_no(cid,typ,table):
 def voucher(vtype):
     cid=session['company_id']; c=con(); ledgers=c.execute('SELECT name FROM ledgers WHERE company_id=? ORDER BY name',(cid,)).fetchall()
     if request.method=='POST':
-        d=request.form; c.execute('INSERT INTO vouchers(company_id,vtype,vno,vdate,debit_ledger,credit_ledger,amount,narration,optional) VALUES(?,?,?,?,?,?,?,?,?)',(cid,vtype,d.get('vno') or next_no(cid,vtype,'vouchers'),d.get('vdate'),d.get('debit_ledger'),d.get('credit_ledger'),float(d.get('amount') or 0),d.get('narration',''),1 if d.get('optional') else 0)); c.commit(); flash(vtype+' Saved')
+        d=request.form; c.execute('INSERT INTO vouchers(company_id,vtype,vno,vdate,debit_ledger,credit_ledger,amount,narration,optional) VALUES(?,?,?,?,?,?,?,?,?)',(cid,vtype,d.get('vno') or next_no(cid,vtype,'vouchers'),d.get('vdate'),d.get('debit_ledger'),d.get('credit_ledger'),float(d.get('amount') or 0),d.get('narration',''),1 if d.get('optional') else 0)); c.commit(); flash(vtype+' Saved'); c.close(); return redirect(url_for('voucher', vtype=vtype))
     rows=c.execute('SELECT * FROM vouchers WHERE company_id=? AND vtype=? ORDER BY vdate DESC,id DESC',(cid,vtype)).fetchall(); c.close(); return render_template('voucher.html', vtype=vtype, ledgers=ledgers, rows=rows, today=datetime.date.today().isoformat())
 
 
@@ -284,8 +286,34 @@ def invoice(itype):
         invno=d.get('invno') or next_no(cid,itype,'invoices'); paid=safe_amount(d.get('paid'))
         cur=c.execute('INSERT INTO invoices(company_id,itype,invno,invdate,party,item,qty,rate,gst_rate,taxable,gst,cgst,sgst,igst,total,paid,narration,place) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',(cid,itype,invno,d.get('invdate'),d.get('party'),d.get('item'),qty,rate,gst_rate,taxable,gst,cgst,sgst,igst,total,paid,d.get('narration',''),place))
         post_invoice_payment_if_any(c,cid,cur.lastrowid,invno,itype,d.get('party'),paid,d.get('invdate'),d.get('pay_ledger','Cash'))
-        c.commit(); flash(itype+' Saved: Ledger + Stock + CGST/SGST/IGST connected')
+        new_id=cur.lastrowid
+        c.commit(); flash(itype+' Saved: Ledger + Stock + CGST/SGST/IGST connected'); c.close(); return redirect(url_for('invoice_saved', inv_id=new_id))
     rows=c.execute('SELECT * FROM invoices WHERE company_id=? AND itype=? ORDER BY invdate DESC,id DESC',(cid,itype)).fetchall(); c.close(); return render_template('invoice.html', itype=itype, ledgers=ledgers, items=items, rows=rows, today=datetime.date.today().isoformat())
+
+@app.route('/invoice_saved/<int:inv_id>')
+@login_required
+@company_required
+def invoice_saved(inv_id):
+    cid=session['company_id']; c=con()
+    inv=c.execute('SELECT invoices.*, COALESCE(items.hsn,"") hsn, COALESCE(items.unit,"Nos") unit FROM invoices LEFT JOIN items ON items.company_id=invoices.company_id AND items.name=invoices.item WHERE invoices.id=? AND invoices.company_id=?',(inv_id,cid)).fetchone()
+    c.close()
+    if not inv:
+        flash('Invoice not found')
+        return redirect(url_for('dashboard'))
+    return render_template('invoice_saved.html', inv=inv)
+
+@app.route('/invoice_print/<int:inv_id>')
+@login_required
+@company_required
+def invoice_print(inv_id):
+    cid=session['company_id']; c=con()
+    inv=c.execute('SELECT invoices.*, COALESCE(items.hsn,"") hsn, COALESCE(items.unit,"Nos") unit FROM invoices LEFT JOIN items ON items.company_id=invoices.company_id AND items.name=invoices.item WHERE invoices.id=? AND invoices.company_id=?',(inv_id,cid)).fetchone()
+    comp=c.execute('SELECT * FROM companies WHERE id=?',(cid,)).fetchone()
+    c.close()
+    if not inv:
+        flash('Invoice not found')
+        return redirect(url_for('dashboard'))
+    return render_template('invoice_print.html', inv=inv, comp=comp)
 
 def invoice_effect(inv, ledger_name):
     """Tally-style invoice posting. Positive = Debit, Negative = Credit.
@@ -338,6 +366,37 @@ def stock_qty_value(cid, item_name):
             # sales reduces stock, purchase return reduces stock
             qty -= q; val -= q*float(inv['rate'] or 0)
     c.close(); return round(qty,2), round(val,2)
+
+def stock_avg_rate(cid, item_name):
+    qty, val = stock_qty_value(cid, item_name)
+    if abs(qty) > 0.0001:
+        return round(val/qty, 2)
+    c=con(); it=c.execute('SELECT opening_rate FROM items WHERE company_id=? AND name=?',(cid,item_name)).fetchone(); c.close()
+    return round(float(it['opening_rate'] or 0), 2) if it else 0.0
+
+def stock_movement_rows(cid, item_name):
+    """Item-wise stock ledger: date, party, in/out qty, rate, amount, closing qty/value."""
+    c=con(); rows=[]
+    it=c.execute('SELECT * FROM items WHERE company_id=? AND name=?',(cid,item_name)).fetchone()
+    closing_qty=0.0; closing_val=0.0
+    if it:
+        oq=float(it['opening_qty'] or 0); orate=float(it['opening_rate'] or 0); oval=round(oq*orate,2)
+        if abs(oq)>0.0001 or abs(oval)>0.01:
+            closing_qty += oq; closing_val += oval
+            rows.append(dict(date='', type='Opening Stock', no='', party='Opening Balance', in_qty=round(oq,2), out_qty='', rate=round(orate,2), amount=oval, closing_qty=round(closing_qty,2), closing_value=round(closing_val,2), hsn=it['hsn'] or ''))
+    invs=c.execute('SELECT * FROM invoices WHERE company_id=? AND item=? ORDER BY invdate,id',(cid,item_name)).fetchall()
+    for inv in invs:
+        q=float(inv['qty'] or 0); rate=float(inv['rate'] or 0); taxable=float(inv['taxable'] or 0)
+        in_qty=''; out_qty=''
+        # Tally-like movement signs
+        if inv['itype'] in ['Purchase','Credit Note']:
+            in_qty=round(q,2); closing_qty += q; closing_val += taxable
+            amount=round(taxable,2)
+        else:  # Sales, Debit Note
+            out_qty=round(q,2); closing_qty -= q; closing_val -= round(q*rate,2)
+            amount=round(q*rate,2)
+        rows.append(dict(date=inv['invdate'], type=inv['itype'], no=inv['invno'], party=inv['party'], in_qty=in_qty, out_qty=out_qty, rate=round(rate,2), amount=amount, closing_qty=round(closing_qty,2), closing_value=round(closing_val,2), hsn=(it['hsn'] if it else '')))
+    c.close(); return rows
 
 def safe_amount(v):
     try: return float(v or 0)
@@ -459,16 +518,19 @@ def reports(rtype):
         stmt=balance_sheet_statement(cid)
         c.close(); return render_template('balance_tally.html', rtype=rtype, title='BALANCE SHEET', stmt=stmt)
     elif rtype=='stock':
-        items=c.execute('SELECT * FROM items WHERE company_id=?',(cid,)).fetchall()
+        items=c.execute('SELECT * FROM items WHERE company_id=? ORDER BY name',(cid,)).fetchall()
         for it in items:
-            qty,val=stock_qty_value(cid,it['name'])
-            data.append(dict(name=it['name'], unit=it['unit'], qty=qty, value=val, reorder=it['reorder'], low=qty<=float(it['reorder'] or 0)))
+            qty,amount=stock_qty_value(cid,it['name'])
+            rate=stock_avg_rate(cid,it['name'])
+            data.append(dict(item=it['name'], hsn=it['hsn'] or '', unit=it['unit'], qty=qty, rate=rate, amount=amount, reorder=it['reorder'], low=qty<=float(it['reorder'] or 0)))
     elif rtype=='gst':
         data=c.execute('SELECT itype, SUM(taxable) taxable, SUM(cgst) cgst, SUM(sgst) sgst, SUM(igst) igst, SUM(gst) gst, SUM(total) total FROM invoices WHERE company_id=? GROUP BY itype',(cid,)).fetchall()
     elif rtype=='sales_register':
-        data=c.execute('SELECT invdate date, invno no, party, item, taxable, cgst, sgst, igst, gst, total, paid, total-COALESCE(paid,0) due FROM invoices WHERE company_id=? AND itype IN ("Sales","Credit Note") ORDER BY invdate DESC,id DESC',(cid,)).fetchall()
+        data=c.execute('SELECT invoices.invdate date, invoices.invno no, invoices.party, invoices.item, COALESCE(items.hsn,"") hsn, invoices.qty, invoices.rate, invoices.taxable, invoices.cgst, invoices.sgst, invoices.igst, invoices.gst, invoices.total, invoices.paid, invoices.total-COALESCE(invoices.paid,0) due FROM invoices LEFT JOIN items ON items.company_id=invoices.company_id AND items.name=invoices.item WHERE invoices.company_id=? AND invoices.itype IN ("Sales","Credit Note") ORDER BY invoices.invdate DESC,invoices.id DESC',(cid,)).fetchall()
     elif rtype=='purchase_register':
-        data=c.execute('SELECT invdate date, invno no, party, item, taxable, cgst, sgst, igst, gst, total, paid, total-COALESCE(paid,0) due FROM invoices WHERE company_id=? AND itype IN ("Purchase","Debit Note") ORDER BY invdate DESC,id DESC',(cid,)).fetchall()
+        data=c.execute('SELECT invoices.invdate date, invoices.invno no, invoices.party, invoices.item, COALESCE(items.hsn,"") hsn, invoices.qty, invoices.rate, invoices.taxable, invoices.cgst, invoices.sgst, invoices.igst, invoices.gst, invoices.total, invoices.paid, invoices.total-COALESCE(invoices.paid,0) due FROM invoices LEFT JOIN items ON items.company_id=invoices.company_id AND items.name=invoices.item WHERE invoices.company_id=? AND invoices.itype IN ("Purchase","Debit Note") ORDER BY invoices.invdate DESC,invoices.id DESC',(cid,)).fetchall()
+    elif rtype=='hsn':
+        data=c.execute('SELECT COALESCE(items.hsn,"") hsn, invoices.item, SUM(invoices.qty) qty, SUM(invoices.taxable) taxable, SUM(invoices.cgst) cgst, SUM(invoices.sgst) sgst, SUM(invoices.igst) igst, SUM(invoices.gst) gst, SUM(invoices.total) total FROM invoices LEFT JOIN items ON items.company_id=invoices.company_id AND items.name=invoices.item WHERE invoices.company_id=? GROUP BY COALESCE(items.hsn,""), invoices.item ORDER BY hsn, invoices.item',(cid,)).fetchall()
     elif rtype=='cashbook':
         c.close(); return redirect(url_for('ledger_report', name='Cash'))
     elif rtype=='bankbook':
@@ -477,12 +539,22 @@ def reports(rtype):
         data=c.execute('SELECT * FROM audit ORDER BY id DESC LIMIT 200').fetchall()
     c.close(); return render_template('reports.html', rtype=rtype, data=data, title=title)
 
+
+@app.route('/stock_ledger/<path:item_name>')
+@login_required
+@company_required
+def stock_ledger(item_name):
+    cid=session['company_id']
+    rows=stock_movement_rows(cid,item_name)
+    c=con(); item=c.execute('SELECT * FROM items WHERE company_id=? AND name=?',(cid,item_name)).fetchone(); c.close()
+    return render_template('stock_ledger.html', item=item, item_name=item_name, rows=rows)
+
 @app.route('/clients', methods=['GET','POST'])
 @login_required
 def clients():
     c=con()
     if request.method=='POST':
-        d=request.form; c.execute('INSERT INTO clients(name,mobile,email,pan,aadhaar,gstin,gst_user,gst_hint,it_user,it_hint,work_type,work_amount,received,remarks) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',(d['name'],d.get('mobile',''),d.get('email',''),d.get('pan',''),d.get('aadhaar',''),d.get('gstin',''),d.get('gst_user',''),d.get('gst_hint',''),d.get('it_user',''),d.get('it_hint',''),d.get('work_type',''),float(d.get('work_amount') or 0),float(d.get('received') or 0),d.get('remarks',''))); c.commit(); flash('Client Saved')
+        d=request.form; c.execute('INSERT INTO clients(name,mobile,email,pan,aadhaar,gstin,gst_user,gst_hint,it_user,it_hint,work_type,work_amount,received,remarks) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',(d['name'],d.get('mobile',''),d.get('email',''),d.get('pan',''),d.get('aadhaar',''),d.get('gstin',''),d.get('gst_user',''),d.get('gst_hint',''),d.get('it_user',''),d.get('it_hint',''),d.get('work_type',''),float(d.get('work_amount') or 0),float(d.get('received') or 0),d.get('remarks',''))); c.commit(); flash('Client Saved'); c.close(); return redirect(url_for('clients'))
     rows=c.execute('SELECT *, work_amount-received due FROM clients ORDER BY id DESC').fetchall(); c.close(); return render_template('clients.html', rows=rows)
 @app.route('/status/<stype>', methods=['GET','POST'])
 @login_required
@@ -493,7 +565,7 @@ def status(stype):
         if stype=='gst': c.execute('INSERT INTO gst_status(client_id,period,gstr1,gstr3b,due_date,remarks) VALUES(?,?,?,?,?,?)',(d['client_id'],d['period'],d.get('gstr1','Pending'),d.get('gstr3b','Pending'),d.get('due_date',''),d.get('remarks','')))
         elif stype=='itr': c.execute('INSERT INTO itr_status(client_id,ay,itr_status,refund_status,docs,remarks) VALUES(?,?,?,?,?,?)',(d['client_id'],d['ay'],d.get('itr_status','Pending'),d.get('refund_status',''),d.get('docs',''),d.get('remarks','')))
         else: c.execute('INSERT INTO tasks(client_id,title,due_date,status,remarks) VALUES(?,?,?,?,?)',(d['client_id'],d['title'],d.get('due_date',''),d.get('status','Pending'),d.get('remarks','')))
-        c.commit(); flash('Saved')
+        c.commit(); flash('Saved'); c.close(); return redirect(url_for('status', stype=stype))
     table={'gst':'gst_status','itr':'itr_status','task':'tasks'}[stype]
     rows=c.execute(f'SELECT {table}.*, clients.name client FROM {table} LEFT JOIN clients ON clients.id={table}.client_id ORDER BY {table}.id DESC').fetchall(); c.close(); return render_template('status.html', stype=stype, clients=clients, rows=rows)
 
@@ -516,7 +588,7 @@ def invoice_payment():
                 c.execute('INSERT INTO vouchers(company_id,vtype,vno,vdate,debit_ledger,credit_ledger,amount,narration) VALUES(?,?,?,?,?,?,?,?)',(cid,'Receipt',next_no(cid,'Receipt','vouchers'),d.get('pdate'),d.get('ledger','Cash'),inv['party'],amt,'Against Invoice '+inv['invno']))
             else:
                 c.execute('INSERT INTO vouchers(company_id,vtype,vno,vdate,debit_ledger,credit_ledger,amount,narration) VALUES(?,?,?,?,?,?,?,?)',(cid,'Payment',next_no(cid,'Payment','vouchers'),d.get('pdate'),inv['party'],d.get('ledger','Cash'),amt,'Against Invoice '+inv['invno']))
-            c.commit(); flash('Invoice-wise payment adjusted and voucher posted')
+            c.commit(); flash('Invoice-wise payment adjusted and voucher posted'); c.close(); return redirect(url_for('invoice_payment'))
     invoices=c.execute('SELECT *, total-COALESCE(paid,0) due FROM invoices WHERE company_id=? AND ABS(total-COALESCE(paid,0))>0.01 ORDER BY invdate DESC',(cid,)).fetchall()
     ledgers=c.execute('SELECT name FROM ledgers WHERE company_id=? AND group_name IN ("Cash-in-Hand","Bank Accounts") ORDER BY name',(cid,)).fetchall()
     rows=c.execute('SELECT invoice_payments.*, invoices.invno, invoices.party FROM invoice_payments LEFT JOIN invoices ON invoices.id=invoice_payments.invoice_id WHERE invoice_payments.company_id=? ORDER BY invoice_payments.id DESC',(cid,)).fetchall()
@@ -597,7 +669,76 @@ def restore():
             flash('Restore error: '+str(e))
         finally:
             if os.path.exists(tmp): os.remove(tmp)
+        return redirect(url_for('restore'))
     return render_template('restore.html')
+
+
+
+def csv_response(filename, headers, rows):
+    out=io.StringIO(); w=csv.writer(out); w.writerow(headers)
+    for r in rows: w.writerow(r)
+    mem=io.BytesIO(out.getvalue().encode('utf-8-sig'))
+    return send_file(mem, as_attachment=True, download_name=filename, mimetype='text/csv')
+
+def esc_xml(x):
+    import html
+    return html.escape('' if x is None else str(x))
+
+def tally_amount(x):
+    try: return f"{float(x):.2f}"
+    except Exception: return "0.00"
+
+def tally_group_for_ledger(group_name):
+    # Tally ke group names mostly same rakhe gaye hain
+    return group_name or 'Sundry Debtors'
+
+def build_tally_xml(cid):
+    c=con()
+    comp=current_company()
+    company_name = comp['name'] if comp else 'Prime Tax Management'
+    parts=[]
+    parts.append('<?xml version="1.0" encoding="UTF-8"?>')
+    parts.append('<ENVELOPE><HEADER><TALLYREQUEST>Import Data</TALLYREQUEST></HEADER><BODY><IMPORTDATA><REQUESTDESC><REPORTNAME>All Masters</REPORTNAME><STATICVARIABLES><SVCURRENTCOMPANY>'+esc_xml(company_name)+'</SVCURRENTCOMPANY></STATICVARIABLES></REQUESTDESC><REQUESTDATA>')
+    for g in c.execute('SELECT * FROM groups WHERE company_id=? ORDER BY name',(cid,)).fetchall():
+        parts.append('<TALLYMESSAGE><GROUP NAME="'+esc_xml(g['name'])+'" ACTION="Create"><NAME>'+esc_xml(g['name'])+'</NAME><PARENT>'+esc_xml(g['parent'] or 'Primary')+'</PARENT></GROUP></TALLYMESSAGE>')
+    for l in c.execute('SELECT * FROM ledgers WHERE company_id=? ORDER BY name',(cid,)).fetchall():
+        opening = float(l['opening'] or 0)
+        if l['drcr']=='Cr': opening = -opening
+        parts.append('<TALLYMESSAGE><LEDGER NAME="'+esc_xml(l['name'])+'" ACTION="Create"><NAME>'+esc_xml(l['name'])+'</NAME><PARENT>'+esc_xml(tally_group_for_ledger(l['group_name']))+'</PARENT><GSTIN>'+esc_xml(l['gstin'] or '')+'</GSTIN><OPENINGBALANCE>'+tally_amount(opening)+'</OPENINGBALANCE></LEDGER></TALLYMESSAGE>')
+    for u in c.execute('SELECT * FROM units WHERE company_id=? ORDER BY symbol',(cid,)).fetchall():
+        parts.append('<TALLYMESSAGE><UNIT NAME="'+esc_xml(u['symbol'])+'" ACTION="Create"><NAME>'+esc_xml(u['symbol'])+'</NAME><ORIGINALNAME>'+esc_xml(u['formal_name'] or u['symbol'])+'</ORIGINALNAME></UNIT></TALLYMESSAGE>')
+    for it in c.execute('SELECT * FROM items WHERE company_id=? ORDER BY name',(cid,)).fetchall():
+        parts.append('<TALLYMESSAGE><STOCKITEM NAME="'+esc_xml(it['name'])+'" ACTION="Create"><NAME>'+esc_xml(it['name'])+'</NAME><BASEUNITS>'+esc_xml(it['unit'] or 'Nos')+'</BASEUNITS><GSTAPPLICABLE>&#4; Applicable</GSTAPPLICABLE><GSTTYPEOFSUPPLY>Goods</GSTTYPEOFSUPPLY><HSNCODE>'+esc_xml(it['hsn'] or '')+'</HSNCODE><GST_RATE>'+tally_amount(it['gst_rate'] or 0)+'</GST_RATE><OPENINGBALANCE>'+tally_amount(it['opening_qty'] or 0)+' '+esc_xml(it['unit'] or 'Nos')+'</OPENINGBALANCE></STOCKITEM></TALLYMESSAGE>')
+    # Accounting vouchers from vouchers table
+    for v in c.execute('SELECT * FROM vouchers WHERE company_id=? AND cancelled=0 AND optional=0 ORDER BY vdate,id',(cid,)).fetchall():
+        date=(v['vdate'] or '').replace('-','')
+        amt=float(v['amount'] or 0)
+        parts.append('<TALLYMESSAGE><VOUCHER VCHTYPE="'+esc_xml(v['vtype'])+'" ACTION="Create"><DATE>'+esc_xml(date)+'</DATE><VOUCHERTYPENAME>'+esc_xml(v['vtype'])+'</VOUCHERTYPENAME><VOUCHERNUMBER>'+esc_xml(v['vno'])+'</VOUCHERNUMBER><NARRATION>'+esc_xml(v['narration'] or '')+'</NARRATION>')
+        parts.append('<ALLLEDGERENTRIES.LIST><LEDGERNAME>'+esc_xml(v['debit_ledger'])+'</LEDGERNAME><ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE><AMOUNT>-'+tally_amount(amt)+'</AMOUNT></ALLLEDGERENTRIES.LIST>')
+        parts.append('<ALLLEDGERENTRIES.LIST><LEDGERNAME>'+esc_xml(v['credit_ledger'])+'</LEDGERNAME><ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE><AMOUNT>'+tally_amount(amt)+'</AMOUNT></ALLLEDGERENTRIES.LIST>')
+        parts.append('</VOUCHER></TALLYMESSAGE>')
+    # Invoice entries in voucher-like tally XML basic
+    for inv in c.execute('SELECT * FROM invoices WHERE company_id=? ORDER BY invdate,id',(cid,)).fetchall():
+        date=(inv['invdate'] or '').replace('-','')
+        vtype = inv['itype']
+        party = inv['party']; item = inv['item']
+        total=float(inv['total'] or 0); taxable=float(inv['taxable'] or 0); gst=float(inv['gst'] or 0)
+        sales_led = 'Sales' if vtype=='Sales' else ('Purchase' if vtype=='Purchase' else ('Sales Return' if vtype=='Credit Note' else 'Purchase Return'))
+        tax_led = 'GST Output' if vtype in ['Sales','Credit Note'] else 'GST Input'
+        parts.append('<TALLYMESSAGE><VOUCHER VCHTYPE="'+esc_xml(vtype)+'" ACTION="Create"><DATE>'+esc_xml(date)+'</DATE><VOUCHERTYPENAME>'+esc_xml(vtype)+'</VOUCHERTYPENAME><VOUCHERNUMBER>'+esc_xml(inv['invno'])+'</VOUCHERNUMBER><PARTYLEDGERNAME>'+esc_xml(party)+'</PARTYLEDGERNAME><NARRATION>'+esc_xml(inv['narration'] or '')+'</NARRATION>')
+        if vtype in ['Sales','Debit Note']:
+            parts.append('<ALLLEDGERENTRIES.LIST><LEDGERNAME>'+esc_xml(party)+'</LEDGERNAME><ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE><AMOUNT>-'+tally_amount(total)+'</AMOUNT></ALLLEDGERENTRIES.LIST>')
+            parts.append('<ALLLEDGERENTRIES.LIST><LEDGERNAME>'+esc_xml(sales_led)+'</LEDGERNAME><ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE><AMOUNT>'+tally_amount(taxable)+'</AMOUNT></ALLLEDGERENTRIES.LIST>')
+            if gst: parts.append('<ALLLEDGERENTRIES.LIST><LEDGERNAME>'+esc_xml(tax_led)+'</LEDGERNAME><ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE><AMOUNT>'+tally_amount(gst)+'</AMOUNT></ALLLEDGERENTRIES.LIST>')
+        else:
+            parts.append('<ALLLEDGERENTRIES.LIST><LEDGERNAME>'+esc_xml(party)+'</LEDGERNAME><ISDEEMEDPOSITIVE>No</ISDEEMEDPOSITIVE><AMOUNT>'+tally_amount(total)+'</AMOUNT></ALLLEDGERENTRIES.LIST>')
+            parts.append('<ALLLEDGERENTRIES.LIST><LEDGERNAME>'+esc_xml(sales_led)+'</LEDGERNAME><ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE><AMOUNT>-'+tally_amount(taxable)+'</AMOUNT></ALLLEDGERENTRIES.LIST>')
+            if gst: parts.append('<ALLLEDGERENTRIES.LIST><LEDGERNAME>'+esc_xml(tax_led)+'</LEDGERNAME><ISDEEMEDPOSITIVE>Yes</ISDEEMEDPOSITIVE><AMOUNT>-'+tally_amount(gst)+'</AMOUNT></ALLLEDGERENTRIES.LIST>')
+        parts.append('<INVENTORYENTRIES.LIST><STOCKITEMNAME>'+esc_xml(item)+'</STOCKITEMNAME><RATE>'+tally_amount(inv['rate'] or 0)+'/'+esc_xml('Nos')+'</RATE><ACTUALQTY>'+tally_amount(inv['qty'] or 0)+'</ACTUALQTY><BILLEDQTY>'+tally_amount(inv['qty'] or 0)+'</BILLEDQTY></INVENTORYENTRIES.LIST>')
+        parts.append('</VOUCHER></TALLYMESSAGE>')
+    parts.append('</REQUESTDATA></IMPORTDATA></BODY></ENVELOPE>')
+    c.close()
+    return '\n'.join(parts)
 
 @app.route('/export/<what>')
 @login_required
@@ -609,8 +750,236 @@ def export(what):
     if rows: w.writerow(rows[0].keys()); [w.writerow(list(r)) for r in rows]
     c.close(); mem=io.BytesIO(out.getvalue().encode()); return send_file(mem, as_attachment=True, download_name=what+'.csv')
 
-if __name__=="__main__":
-    import os
+
+
+
+def extract_text_from_upload(file_storage):
+    """PDF/JPG invoice se best-effort text extraction. PDF text nikal sakta hai; image ke liye manual preview fallback rahega."""
+    name=(file_storage.filename or '').lower()
+    data=file_storage.read()
+    text=''
+    if name.endswith('.pdf'):
+        try:
+            from pypdf import PdfReader
+            reader=PdfReader(io.BytesIO(data))
+            text='\n'.join([(page.extract_text() or '') for page in reader.pages])
+        except Exception:
+            text=''
+    # JPG/PNG image OCR ke liye server par OCR engine chahiye. Agar available hua to try karega, warna manual correction screen.
+    elif name.endswith(('.jpg','.jpeg','.png','.webp')):
+        try:
+            from PIL import Image
+            import pytesseract
+            img=Image.open(io.BytesIO(data))
+            text=pytesseract.image_to_string(img)
+        except Exception:
+            text=''
+    return text[:20000]
+
+def pick_amount(patterns, text, default=0):
+    for pat in patterns:
+        m=re.search(pat, text, re.I)
+        if m:
+            return safe_amount((m.group(1) or '').replace(',',''))
+    return default
+
+def pick_value(patterns, text, default=''):
+    for pat in patterns:
+        m=re.search(pat, text, re.I)
+        if m:
+            return (m.group(1) or '').strip()[:120]
+    return default
+
+def parse_invoice_text(text):
+    clean=' '.join((text or '').replace('\r',' ').split())
+    invno=pick_value([r'invoice\s*(?:no|number|#)\s*[:\-]?\s*([A-Z0-9\-/]+)', r'bill\s*(?:no|number)\s*[:\-]?\s*([A-Z0-9\-/]+)'], clean)
+    date=pick_value([r'(\d{4}-\d{2}-\d{2})', r'(\d{2}[/-]\d{2}[/-]\d{4})'], clean, datetime.date.today().isoformat())
+    if '/' in date:
+        dd,mm,yy=date.split('/')
+        date=f'{yy}-{mm}-{dd}'
+    party=pick_value([r'(?:party|customer|buyer|bill\s*to|supplier|vendor)\s*[:\-]?\s*([A-Za-z0-9 &.,\-]{3,80})', r'GSTIN\s*[:\-]?\s*[0-9A-Z]{15}\s*([A-Za-z0-9 &.,\-]{3,80})'], clean, 'New Party')
+    gstin=pick_value([r'GSTIN\s*[:\-]?\s*([0-9A-Z]{15})'], clean)
+    item=pick_value([r'(?:item|description|particulars)\s*[:\-]?\s*([A-Za-z0-9 &.,\-]{3,80})'], clean, 'New Item')
+    qty=pick_amount([r'(?:qty|quantity)\s*[:\-]?\s*([0-9,.]+)'], clean, 1)
+    taxable=pick_amount([r'(?:taxable\s*value|taxable|sub\s*total)\s*[:\-]?\s*₹?\s*([0-9,.]+)'], clean, 0)
+    total=pick_amount([r'(?:grand\s*total|invoice\s*total|total\s*amount|total)\s*[:\-]?\s*₹?\s*([0-9,.]+)'], clean, 0)
+    cgst=pick_amount([r'cgst\s*[:\-]?\s*₹?\s*([0-9,.]+)'], clean, 0)
+    sgst=pick_amount([r'sgst\s*[:\-]?\s*₹?\s*([0-9,.]+)'], clean, 0)
+    igst=pick_amount([r'igst\s*[:\-]?\s*₹?\s*([0-9,.]+)'], clean, 0)
+    gst=cgst+sgst+igst
+    if taxable<=0 and total>0:
+        taxable=max(total-gst,0)
+    gst_rate=0
+    if taxable>0 and gst>0:
+        gst_rate=round((gst/taxable)*100,2)
+    rate=round(taxable/qty,2) if qty else taxable
+    place='Interstate' if igst>0 else 'Local'
+    return dict(invno=invno, invdate=date, party=party, gstin=gstin, item=item, qty=qty or 1, rate=rate, gst_rate=gst_rate, taxable=taxable, cgst=cgst, sgst=sgst, igst=igst, total=total or taxable+gst, place=place, raw_text=text or '')
+
+@app.route('/auto_entry', methods=['GET','POST'])
+@login_required
+@company_required
+def auto_entry():
+    cid=session['company_id']; c=con()
+    if request.method=='POST':
+        f=request.files.get('file')
+        if not f or not f.filename:
+            flash('PDF/JPG file select karo'); c.close(); return redirect(url_for('auto_entry'))
+        raw=extract_text_from_upload(f)
+        c.execute('INSERT INTO auto_uploads(company_id,filename,raw_text,created_at) VALUES(?,?,?,?)',(cid,f.filename,raw,datetime.datetime.now().strftime('%Y-%m-%d %H:%M')))
+        c.commit()
+        parsed=parse_invoice_text(raw)
+        ledgers=c.execute('SELECT name FROM ledgers WHERE company_id=? ORDER BY name',(cid,)).fetchall()
+        items=c.execute('SELECT * FROM items WHERE company_id=? ORDER BY name',(cid,)).fetchall()
+        units=c.execute('SELECT symbol FROM units WHERE company_id=? ORDER BY symbol',(cid,)).fetchall()
+        c.close()
+        return render_template('auto_entry_preview.html', parsed=parsed, ledgers=ledgers, items=items, units=units, filename=f.filename, today=datetime.date.today().isoformat())
+    rows=c.execute('SELECT * FROM auto_uploads WHERE company_id=? ORDER BY id DESC LIMIT 20',(cid,)).fetchall(); c.close()
+    return render_template('auto_entry.html', rows=rows)
+
+@app.route('/auto_entry/save', methods=['POST'])
+@login_required
+@company_required
+def auto_entry_save():
+    cid=session['company_id']; d=request.form; c=con()
+    itype=d.get('itype') or 'Purchase'
+    party=(d.get('party') or '').strip() or 'New Party'
+    item=(d.get('item') or '').strip() or 'New Item'
+    # missing ledger/item/unit ko preview se create karne ka option
+    if d.get('create_party'):
+        group='Sundry Debtors' if itype in ['Sales','Credit Note'] else 'Sundry Creditors'
+        if not c.execute('SELECT 1 FROM ledgers WHERE company_id=? AND lower(name)=lower(?)',(cid,party)).fetchone():
+            c.execute('INSERT INTO ledgers(company_id,name,group_name,gstin,mobile,opening,drcr) VALUES(?,?,?,?,?,?,?)',(cid,party,group,d.get('gstin',''),'',0,'Dr'))
+    else:
+        create_default_party_if_missing(cid, party, itype)
+    if d.get('create_unit'):
+        unit=(d.get('unit') or 'Nos').strip()
+        if not c.execute('SELECT 1 FROM units WHERE company_id=? AND lower(symbol)=lower(?)',(cid,unit)).fetchone():
+            c.execute('INSERT INTO units(company_id,symbol,formal_name) VALUES(?,?,?)',(cid,unit,unit))
+    if d.get('create_item'):
+        unit=(d.get('unit') or 'Nos').strip()
+        if not c.execute('SELECT 1 FROM items WHERE company_id=? AND lower(name)=lower(?)',(cid,item)).fetchone():
+            c.execute('INSERT INTO items(company_id,name,unit,hsn,gst_rate,opening_qty,opening_rate,reorder) VALUES(?,?,?,?,?,?,?,?)',(cid,item,unit,d.get('hsn',''),safe_amount(d.get('gst_rate')),0,0,0))
+    qty=safe_amount(d.get('qty')) or 1; rate=safe_amount(d.get('rate')); gst_rate=safe_amount(d.get('gst_rate'))
+    taxable=round(qty*rate,2)
+    place=d.get('place','Local'); cgst,sgst,igst,gst=calc_gst_split(taxable,gst_rate,place); total=round(taxable+gst,2)
+    invno=d.get('invno') or next_no(cid,itype,'invoices')
+    c.execute('INSERT INTO invoices(company_id,itype,invno,invdate,party,item,qty,rate,gst_rate,taxable,gst,cgst,sgst,igst,total,paid,narration,place) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',(cid,itype,invno,d.get('invdate') or datetime.date.today().isoformat(),party,item,qty,rate,gst_rate,taxable,gst,cgst,sgst,igst,total,0,d.get('narration','Auto Entry from PDF/JPG'),place))
+    c.commit(); c.close(); flash('Auto Entry saved with ledger/item creation options'); return redirect(url_for('invoice', itype=itype))
+
+@app.route('/utilities/tally')
+@login_required
+@company_required
+def tally_utilities():
+    return render_template('tally_utilities.html')
+
+@app.route('/export/tally_xml')
+@login_required
+@company_required
+def export_tally_xml():
+    cid=session['company_id']
+    xml=build_tally_xml(cid)
+    mem=io.BytesIO(xml.encode('utf-8'))
+    return send_file(mem, as_attachment=True, download_name='Prime_Tax_Management_Tally_Export.xml', mimetype='application/xml')
+
+@app.route('/export/excel_csv/<what>')
+@login_required
+@company_required
+def export_excel_csv(what):
+    cid=session['company_id']; c=con()
+    if what=='ledgers':
+        rows=c.execute('SELECT name,group_name,gstin,mobile,opening,drcr FROM ledgers WHERE company_id=? ORDER BY name',(cid,)).fetchall()
+        c.close(); return csv_response('ledgers_for_excel.csv',['name','group_name','gstin','mobile','opening','drcr'],[list(r) for r in rows])
+    if what=='stock':
+        rows=c.execute('SELECT name,unit,hsn,gst_rate,opening_qty,opening_rate,reorder FROM items WHERE company_id=? ORDER BY name',(cid,)).fetchall()
+        c.close(); return csv_response('stock_items_for_excel.csv',['name','unit','hsn','gst_rate','opening_qty','opening_rate','reorder'],[list(r) for r in rows])
+    if what=='vouchers':
+        rows=c.execute('SELECT vtype,vno,vdate,debit_ledger,credit_ledger,amount,narration FROM vouchers WHERE company_id=? ORDER BY vdate,id',(cid,)).fetchall()
+        c.close(); return csv_response('vouchers_for_excel.csv',['vtype','vno','vdate','debit_ledger','credit_ledger','amount','narration'],[list(r) for r in rows])
+    rows=c.execute('SELECT itype,invno,invdate,party,item,qty,rate,gst_rate,cgst,sgst,igst,total,paid,narration FROM invoices WHERE company_id=? ORDER BY invdate,id',(cid,)).fetchall()
+    c.close(); return csv_response('invoices_for_excel.csv',['itype','invno','invdate','party','item','qty','rate','gst_rate','cgst','sgst','igst','total','paid','narration'],[list(r) for r in rows])
+
+@app.route('/import/csv/<what>', methods=['POST'])
+@login_required
+@company_required
+def import_csv(what):
+    cid=session['company_id']; f=request.files.get('file')
+    if not f:
+        flash('CSV file select karo'); return redirect(url_for('tally_utilities'))
+    text=f.read().decode('utf-8-sig', errors='ignore')
+    reader=csv.DictReader(io.StringIO(text)); c=con(); count=0
+    try:
+        for r in reader:
+            if what=='ledgers':
+                name=(r.get('name') or r.get('Name') or '').strip()
+                if not name: continue
+                c.execute('INSERT INTO ledgers(company_id,name,group_name,gstin,mobile,opening,drcr) SELECT ?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM ledgers WHERE company_id=? AND lower(name)=lower(?))',(cid,name,r.get('group_name') or r.get('Group') or 'Sundry Debtors',r.get('gstin',''),r.get('mobile',''),safe_amount(r.get('opening')),r.get('drcr') or 'Dr',cid,name)); count+=1
+            elif what=='stock':
+                name=(r.get('name') or r.get('Name') or '').strip()
+                if not name: continue
+                c.execute('INSERT INTO items(company_id,name,unit,hsn,gst_rate,opening_qty,opening_rate,reorder) SELECT ?,?,?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM items WHERE company_id=? AND lower(name)=lower(?))',(cid,name,r.get('unit') or 'Nos',r.get('hsn',''),safe_amount(r.get('gst_rate')),safe_amount(r.get('opening_qty')),safe_amount(r.get('opening_rate')),safe_amount(r.get('reorder')),cid,name)); count+=1
+            elif what=='vouchers':
+                vt=r.get('vtype') or r.get('type') or 'Journal'
+                c.execute('INSERT INTO vouchers(company_id,vtype,vno,vdate,debit_ledger,credit_ledger,amount,narration) VALUES(?,?,?,?,?,?,?,?)',(cid,vt,r.get('vno') or next_no(cid,vt,'vouchers'),r.get('vdate') or datetime.date.today().isoformat(),r.get('debit_ledger'),r.get('credit_ledger'),safe_amount(r.get('amount')),r.get('narration',''))); count+=1
+        c.commit(); flash(str(count)+' row import ho gaya')
+    except Exception as e:
+        c.rollback(); flash('Import error: '+str(e))
+    finally:
+        c.close()
+    return redirect(url_for('tally_utilities'))
+
+@app.route('/import/tally_xml', methods=['POST'])
+@login_required
+@company_required
+def import_tally_xml():
+    cid=session['company_id']; f=request.files.get('file')
+    if not f:
+        flash('Tally XML file select karo'); return redirect(url_for('tally_utilities'))
+    data=f.read(); c=con(); led=stk=vou=0
+    try:
+        root=ET.fromstring(data)
+        # group/ledger/stock import: common Tally XML tags
+        for node in root.iter():
+            tag=node.tag.upper().split('}')[-1]
+            if tag=='LEDGER':
+                name=node.attrib.get('NAME') or (node.findtext('NAME') or '').strip()
+                parent=(node.findtext('PARENT') or 'Sundry Debtors').strip()
+                gstin=(node.findtext('GSTIN') or '').strip()
+                op=safe_amount((node.findtext('OPENINGBALANCE') or '0').replace(',',''))
+                drcr='Dr' if op>=0 else 'Cr'
+                if name:
+                    c.execute('INSERT INTO ledgers(company_id,name,group_name,gstin,opening,drcr) SELECT ?,?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM ledgers WHERE company_id=? AND lower(name)=lower(?))',(cid,name,parent,gstin,abs(op),drcr,cid,name)); led+=1
+            elif tag=='STOCKITEM':
+                name=node.attrib.get('NAME') or (node.findtext('NAME') or '').strip()
+                unit=(node.findtext('BASEUNITS') or 'Nos').strip()
+                hsn=(node.findtext('HSNCODE') or '').strip()
+                rate=safe_amount(node.findtext('GST_RATE') or node.findtext('GSTRATE') or '0')
+                if name:
+                    c.execute('INSERT INTO items(company_id,name,unit,hsn,gst_rate) SELECT ?,?,?,?,? WHERE NOT EXISTS(SELECT 1 FROM items WHERE company_id=? AND lower(name)=lower(?))',(cid,name,unit,hsn,rate,cid,name)); stk+=1
+            elif tag=='VOUCHER':
+                vt=node.attrib.get('VCHTYPE') or node.findtext('VOUCHERTYPENAME') or 'Journal'
+                vno=node.findtext('VOUCHERNUMBER') or next_no(cid,vt,'vouchers')
+                rawdate=node.findtext('DATE') or ''
+                vdate = rawdate if '-' in rawdate else (rawdate[0:4]+'-'+rawdate[4:6]+'-'+rawdate[6:8] if len(rawdate)>=8 else datetime.date.today().isoformat())
+                ledgers=[]; amounts=[]
+                for le in node.iter():
+                    if le.tag.upper().endswith('ALLLEDGERENTRIES.LIST'):
+                        lname=le.findtext('LEDGERNAME') or ''
+                        amt=safe_amount((le.findtext('AMOUNT') or '0').replace(',',''))
+                        if lname: ledgers.append(lname); amounts.append(amt)
+                if len(ledgers)>=2:
+                    debit=ledgers[0] if amounts[0]<0 else ledgers[1]
+                    credit=ledgers[1] if amounts[0]<0 else ledgers[0]
+                    amount=max(abs(amounts[0]), abs(amounts[1]))
+                    c.execute('INSERT INTO vouchers(company_id,vtype,vno,vdate,debit_ledger,credit_ledger,amount,narration) VALUES(?,?,?,?,?,?,?,?)',(cid,vt,vno,vdate,debit,credit,amount,node.findtext('NARRATION') or 'Imported from Tally XML')); vou+=1
+        c.commit(); flash(f'Tally XML import: {led} ledgers, {stk} stock items, {vou} vouchers')
+    except Exception as e:
+        c.rollback(); flash('Tally XML import error: '+str(e))
+    finally:
+        c.close()
+    return redirect(url_for('tally_utilities'))
+
+if __name__=='__main__':
     init_db()
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)

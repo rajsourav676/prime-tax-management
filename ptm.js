@@ -1,7 +1,7 @@
 (function(){
   let soundOn = localStorage.getItem('ptmSound') !== 'off';
   let ctx;
-  function beep(freq=620, duration=0.045, gain=0.028){
+  function beep(freq=620, duration=0.07, gain=0.075){
     if(!soundOn) return;
     try{
       ctx = ctx || new (window.AudioContext||window.webkitAudioContext)();
@@ -81,7 +81,35 @@
   document.addEventListener('keydown', e=>{
     const k=e.key.toLowerCase();
     if(e.key==='?' || (e.shiftKey && e.key==='/')){e.preventDefault(); toggleHelp(true); return;}
-    if(e.key==='Escape'){toggleHelp(false); return;}
+    if(e.key==='Escape'){
+      const modal=[...document.querySelectorAll('.modal')].find(m=>getComputedStyle(m).display!=='none');
+      if(modal){ e.preventDefault(); modal.style.display='none'; beep(520); return; }
+      e.preventDefault(); beep(480); setTimeout(()=>{ if(history.length>1) history.back(); else location='/dashboard'; }, 60); return;
+    }
+    if(['ArrowDown','ArrowUp','ArrowLeft','ArrowRight'].includes(e.key)){
+      const active=document.activeElement;
+      const isForm=active && ['INPUT','TEXTAREA','SELECT'].includes(active.tagName);
+      if(!isForm){
+        const selector='.gateway a,.menugrid a,.tally-right a,.tally-topbar a,button.btn,a.btn,button';
+        const items=[...document.querySelectorAll(selector)].filter(x=>x.offsetParent!==null && !x.disabled);
+        if(items.length){
+          e.preventDefault();
+          let i=items.indexOf(active);
+          if(i<0) i=-1;
+          const next = (e.key==='ArrowDown' || e.key==='ArrowRight');
+          i = next ? (i+1)%items.length : (i-1+items.length)%items.length;
+          items[i].focus({preventScroll:true});
+          beep(430,0.035,0.04);
+          return;
+        }
+      }
+    }
+    if(e.key==='Enter'){
+      const active=document.activeElement;
+      if(active && active.matches && active.matches('a,button.btn,a.btn')){
+        e.preventDefault(); beep(740); active.click(); return;
+      }
+    }
     if(e.ctrlKey && k==='m'){ e.preventDefault(); soundOn=!soundOn; localStorage.setItem('ptmSound', soundOn?'on':'off'); beep(800); alert('Sound '+(soundOn?'ON':'OFF')); return; }
     if(e.ctrlKey && k==='a'){let f=document.querySelector('form'); if(f){e.preventDefault(); beep(850); f.submit();} return;}
     if(e.key==='F4'){e.preventDefault();go('/voucher/Contra')}
@@ -96,6 +124,18 @@
       const active=document.activeElement;
       if(active && active.dataset && active.dataset.create){ e.preventDefault(); openInlineMaster(active); return; }
     }
+    // Tally style top-line shortcuts without Alt. Works only outside form fields.
+    const activeEl=document.activeElement;
+    const inForm=activeEl && ['INPUT','TEXTAREA','SELECT'].includes(activeEl.tagName);
+    if(!e.ctrlKey && !e.altKey && !e.metaKey && !inForm){
+      const topKeyMap={k:'/companies',d:'/backup',x:'/utilities/tally',g:'/dashboard',i:'/utilities/tally',e:'/utilities/tally',p:'print',q:'/logout'};
+      if(topKeyMap[k]){
+        e.preventDefault();
+        if(topKeyMap[k]==='print'){ beep(760); window.print(); }
+        else { go(topKeyMap[k]); }
+        return;
+      }
+    }
     if(e.altKey){
       const map={
         o:'/companies',g:'/dashboard','1':'/masters/group','2':'/masters/ledger','3':'/masters/unit','4':'/masters/item','5':'/gst_rates',
@@ -106,3 +146,5 @@
     }
   });
 })();
+
+try{const d=new Date();const el=document.getElementById('todayText');if(el){el.textContent=d.toLocaleDateString('en-IN',{weekday:'long',day:'2-digit',month:'short',year:'numeric'});}}catch(e){}

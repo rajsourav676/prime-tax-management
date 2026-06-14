@@ -1,55 +1,69 @@
-<!doctype html><html><head><meta charset=utf-8><meta name=viewport content='width=device-width,initial-scale=1'>
-<title>{{app_name}}</title><link rel=stylesheet href='{{url_for("static",filename="style.css")}}'></head><body>
-<div class=top><div class=brand><div class=logo>PTM</div><div><b>{{app_name}}</b><small>{{tagline}}</small></div></div><div class=topright>{% if session.user %}<span>Welcome : <b>Saurav Kumar Saha</b></span><a class=quit href=/logout data-sound>Quit</a>{% endif %}</div></div>
-{% if session.user %}<div class=layout><aside>
-<div class=side-title>Gateway Menu</div>
-<a data-sound data-key="Alt+O" href=/companies><span>Company</span><kbd>Alt+O</kbd></a>
-{% if company %}<div class=co>Current Company<br><b>{{company.name}}</b><small>{{company.fy_start}} to {{company.fy_end}}</small></div>
-<a data-sound data-key="Alt+G" href=/dashboard><span>Gateway</span><kbd>Alt+G</kbd></a>
-<b>Masters</b>
-<a data-sound data-key="Alt+1" href=/masters/group><span>Groups Create/Alter</span><kbd>Alt+1</kbd></a>
-<a data-sound data-key="Alt+2" href=/masters/ledger><span>Ledger Create/Alter</span><kbd>Alt+2</kbd></a>
-<a data-sound data-key="Alt+3" href=/masters/unit><span>Unit Create/Alter</span><kbd>Alt+3</kbd></a>
-<a data-sound data-key="Alt+4" href=/masters/item><span>Stock Item Create/Alter</span><kbd>Alt+4</kbd></a>
-<a data-sound data-key="Alt+5" href=/gst_rates><span>GST/HSN Master</span><kbd>Alt+5</kbd></a>
-<b>Vouchers</b>
-<a data-sound data-key="F4" href=/voucher/Contra><span>Contra</span><kbd>F4</kbd></a>
-<a data-sound data-key="F5" href=/voucher/Payment><span>Payment</span><kbd>F5</kbd></a>
-<a data-sound data-key="F6" href=/voucher/Receipt><span>Receipt</span><kbd>F6</kbd></a>
-<a data-sound data-key="F7" href=/voucher/Journal><span>Journal</span><kbd>F7</kbd></a>
-<a data-sound data-key="F8" href=/invoice/Sales><span>Sales</span><kbd>F8</kbd></a>
-<a data-sound data-key="F9" href=/invoice/Purchase><span>Purchase</span><kbd>F9</kbd></a>
-<a data-sound data-key="Ctrl+F8" href=/invoice/Credit%20Note><span>Credit Note</span><kbd>Ctrl+F8</kbd></a>
-<a data-sound data-key="Ctrl+F9" href=/invoice/Debit%20Note><span>Debit Note</span><kbd>Ctrl+F9</kbd></a>
-<a data-sound data-key="Alt+P" href=/invoice_payment><span>Invoice Payment</span><kbd>Alt+P</kbd></a>
-<b>Reports</b>
-<a data-sound data-key="Alt+D" href=/reports/daybook><span>Day Book</span><kbd>Alt+D</kbd></a>
-<a data-sound data-key="Alt+T" href=/reports/trial><span>Trial Balance</span><kbd>Alt+T</kbd></a>
-<a data-sound data-key="Alt+L" href=/reports/pl><span>P & L</span><kbd>Alt+L</kbd></a>
-<a data-sound data-key="Alt+B" href=/reports/balance><span>Balance Sheet</span><kbd>Alt+B</kbd></a>
-<a data-sound data-key="Alt+C" href=/reports/cashbook><span>Cash Book</span><kbd>Alt+C</kbd></a>
-<a data-sound data-key="Alt+K" href=/reports/bankbook><span>Bank Book</span><kbd>Alt+K</kbd></a>
-<a data-sound data-key="Alt+S" href=/reports/stock><span>Stock Summary</span><kbd>Alt+S</kbd></a>
-<a data-sound data-key="Alt+R" href=/reports/gst><span>GST Summary</span><kbd>Alt+R</kbd></a>
-<a data-sound data-key="Alt+X" href=/reports/sales_register><span>Sales Register</span><kbd>Alt+X</kbd></a>
-<a data-sound data-key="Alt+Y" href=/reports/purchase_register><span>Purchase Register</span><kbd>Alt+Y</kbd></a>
-<a data-sound data-key="Alt+U" href=/reports/outstanding><span>Outstanding</span><kbd>Alt+U</kbd></a>{% endif %}
-<b>Tax Office</b>
-<a data-sound data-key="Alt+N" href=/clients><span>Clients</span><kbd>Alt+N</kbd></a>
-<a data-sound data-key="Alt+J" href=/status/gst><span>GST Tracker</span><kbd>Alt+J</kbd></a>
-<a data-sound data-key="Alt+I" href=/status/itr><span>ITR Tracker</span><kbd>Alt+I</kbd></a>
-<a data-sound data-key="Alt+W" href=/status/task><span>Tasks</span><kbd>Alt+W</kbd></a>
-<b>Utilities</b>
-<a data-sound data-key="Alt+Z" href=/backup><span>Backup</span><kbd>Alt+Z</kbd></a>
-<a data-sound data-key="Alt+E" href=/restore><span>Restore</span><kbd>Alt+E</kbd></a>
-<a data-sound data-key="Alt+H" href=/checkup><span>Data Checkup</span><kbd>Alt+H</kbd></a>
-<a data-sound data-key="Alt+A" href=/reports/audit><span>Audit Log</span><kbd>Alt+A</kbd></a>
-<div class=hint>Save: <kbd>Ctrl+A</kbd> • Help: <kbd>?</kbd> • Sound: <kbd>Ctrl+M</kbd></div>
-</aside><main>{% endif %}
-{% with m=get_flashed_messages() %}{% if m %}<div class=flash>{% for x in m %}{{x}}{% endfor %}</div>{% endif %}{% endwith %}
-{% block content %}{% endblock %}
-{% if session.user %}</main></div>{% endif %}
-<div id=shortcutHelp class=modal><div class=modalbox><button class=close data-sound onclick="toggleHelp(false)">×</button><h2>Prime Tax Management Shortcuts</h2><div class=shortgrid><p><kbd>F4</kbd> Contra</p><p><kbd>F5</kbd> Payment</p><p><kbd>F6</kbd> Receipt</p><p><kbd>F7</kbd> Journal</p><p><kbd>F8</kbd> Sales</p><p><kbd>F9</kbd> Purchase</p><p><kbd>Ctrl+F8</kbd> Credit Note</p><p><kbd>Ctrl+F9</kbd> Debit Note</p><p><kbd>Ctrl+A</kbd> Save Form</p><p><kbd>Alt+C</kbd> Create master in field</p><p><kbd>Alt+2</kbd> Ledger</p><p><kbd>Alt+4</kbd> Stock Item</p><p><kbd>Alt+B</kbd> Balance Sheet</p></div></div></div>
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{app_name}}</title>
+  <link rel="stylesheet" href='{{url_for("static",filename="style.css")}}'>
+</head>
+<body class="{% if request.endpoint in ['voucher','invoice','reports','ledger_report','edit_row','invoice_payment','auto_entry','tally_utilities','restore','clients','status','masters','gst_rates','checkup'] %}work-wide{% endif %}">
+<div class="tally-topbar">
+  <div class="tally-logo"><span class="script">Prime</span><b>TAX</b><small>MANAGEMENT</small></div>
+  <a data-sound data-key="k" href="/companies"><u>K</u>: Company</a>
+  <a data-sound data-key="d" href="/backup"><u>D</u>: Data</a>
+  <a data-sound data-key="x" href="/utilities/tally"><u>X</u>: Exchange</a>
+  <a data-sound data-key="g" href="/dashboard" class="active"><u>G</u>: Go To</a>
+  <a data-sound data-key="i" href="/utilities/tally"><u>I</u>: Import</a>
+  <a data-sound data-key="e" href="/utilities/tally"><u>E</u>: Export</a>
+  <a data-sound data-key="p" href="#" onclick="window.print();return false"><u>P</u>: Print</a>
+  <a data-sound data-key="f1" href="#" onclick="toggleHelp(true);return false">F1: Help</a>
+  {% if session.user %}<a data-sound data-key="q" href="/logout"><u>Q</u>: Quit</a>{% endif %}
+</div>
 
+{% if session.user %}
+<div class="tally-subbar">Gateway of Prime Tax Management</div>
+<div class="tally-shell">
+  <section class="tally-left">
+    <div class="period-row"><span>CURRENT PERIOD</span><b>{% if company %}{{company.fy_start}} to {{company.fy_end}}{% else %}Create/Open Company{% endif %}</b></div>
+    <div class="period-row right-date"><span>CURRENT DATE</span><b id="todayText"></b></div>
+    <div class="company-head"><span>NAME OF COMPANY</span><span>DATE OF LAST ENTRY</span></div>
+    <div class="company-line">
+      <b>{% if company %}{{company.name}}{% else %}No Company Open{% endif %}</b>
+      <b>{{session.get('last_entry','')}}</b>
+    </div>
+    <div class="welcome-line">Welcome : <b>Saurav Kumar Saha</b></div>
+    {% if company %}<div class="mini-info">GSTIN/PAN and entry data are company-wise.</div>{% endif %}
+  </section>
+
+  <main class="tally-main">
+    {% with m=get_flashed_messages() %}{% if m %}<div class="flash">{% for x in m %}{{x}}{% endfor %}</div>{% endif %}{% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <aside class="tally-right">
+    <a data-sound href="#" onclick="alert('Date shortcut coming soon');return false">F2: Date</a>
+    <a data-sound href="/companies">F3: Company</a>
+    <a data-sound href="/reports/trial">F4: Trial Balance</a>
+    <a data-sound href="/voucher/Payment">F5: Payment</a>
+    <a data-sound href="/voucher/Receipt">F6: Receipt</a>
+    <a data-sound href="/voucher/Journal">F7: Journal</a>
+    <a data-sound href="/invoice/Sales">F8: Sales</a>
+    <a data-sound href="/invoice/Purchase">F9: Purchase</a>
+    <a data-sound href="/reports/pl">Alt+L: P&L</a>
+    <a data-sound href="/reports/balance">Alt+B: Balance</a>
+    <a data-sound href="/reports/stock">Alt+S: Stock</a>
+    <a data-sound href="/reports/hsn">Alt+H: HSN</a>
+    <a data-sound href="/clients">Alt+N: Client</a>
+    <div class="right-note">Ctrl+A Save<br>Alt+C Create<br>Ctrl+M Sound<br>↑↓←→ Move<br>K/D/X/G/I/E/P/Q Top</div>
+  </aside>
+</div>
+{% else %}
+  {% with m=get_flashed_messages() %}{% if m %}<div class="flash login-flash">{% for x in m %}{{x}}{% endfor %}</div>{% endif %}{% endwith %}
+  {% block logincontent %}{% endblock %}
+{% endif %}
+
+<div id="shortcutHelp" class="modal"><div class="modalbox"><button class="close" data-sound onclick="toggleHelp(false)">×</button><h2>Prime Tax Management Shortcuts</h2><div class="shortgrid"><p><kbd>F4</kbd> Contra</p><p><kbd>F5</kbd> Payment</p><p><kbd>F6</kbd> Receipt</p><p><kbd>F7</kbd> Journal</p><p><kbd>F8</kbd> Sales</p><p><kbd>F9</kbd> Purchase</p><p><kbd>Ctrl+F8</kbd> Credit Note</p><p><kbd>Ctrl+F9</kbd> Debit Note</p><p><kbd>Ctrl+A</kbd> Save Form</p><p><kbd>Alt+C</kbd> Create master in field</p><p><kbd>Alt+2</kbd> Ledger</p><p><kbd>Alt+4</kbd> Stock Item</p><p><kbd>Alt+B</kbd> Balance Sheet</p><p><kbd>K/D/X/G/I/E/P/Q</kbd> Top Menu</p><p><kbd>↑↓←→</kbd> Menu Move</p><p><kbd>Enter</kbd> Open Selected</p></div></div></div>
 <div id="inlineMasterModal" class="modal"><div class="modalbox inlinebox"><button class="close" data-sound onclick="closeInlineMaster()">×</button><h2 id="inlineMasterTitle">Create Master</h2><form id="inlineMasterForm"><div id="inlineMasterFields"></div><button type="submit">Create & Select (Alt+C)</button><p class="minihelp">Tally style: create hone ke baad current field me automatic select ho jayega.</p></form></div></div>
-<script src='{{url_for("static",filename="ptm.js")}}'></script></body></html>
+<script src='{{url_for("static",filename="ptm.js")}}'></script>
+</body>
+</html>

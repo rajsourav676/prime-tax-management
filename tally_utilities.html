@@ -1,0 +1,37 @@
+{% extends 'base.html' %}{% block content %}
+<h2>Tally Import / Export Utilities</h2>
+<div class="card">
+  <h3>Tally → Prime Tax Management</h3>
+  <p>Yahan Tally XML se Ledger, Stock Item aur basic Voucher import hoga. Pehle backup zaroor le lo.</p>
+  <form method="post" action="/import/tally_xml" enctype="multipart/form-data">
+    <label>Tally XML File</label>
+    <input type="file" name="file" accept=".xml" required>
+    <button>Import Tally XML</button>
+  </form>
+</div>
+<div class="card">
+  <h3>Prime Tax Management → Tally</h3>
+  <p>Company ke ledgers, units, stock items, vouchers aur invoices ka Tally XML export.</p>
+  <a class="btn" href="/export/tally_xml">Download Tally XML</a>
+</div>
+<div class="card">
+  <h3>Excel / CSV Import</h3>
+  <div class="grid2">
+    <form method="post" action="/import/csv/ledgers" enctype="multipart/form-data"><label>Ledger CSV</label><input type="file" name="file" accept=".csv" required><button>Import Ledgers</button></form>
+    <form method="post" action="/import/csv/stock" enctype="multipart/form-data"><label>Stock CSV</label><input type="file" name="file" accept=".csv" required><button>Import Stock</button></form>
+    <form method="post" action="/import/csv/vouchers" enctype="multipart/form-data"><label>Voucher CSV</label><input type="file" name="file" accept=".csv" required><button>Import Vouchers</button></form>
+  </div>
+</div>
+<div class="card">
+  <h3>Excel / CSV Export</h3>
+  <div class="menugrid">
+    <a href="/export/excel_csv/ledgers">Ledger CSV</a>
+    <a href="/export/excel_csv/stock">Stock CSV</a>
+    <a href="/export/excel_csv/vouchers">Voucher CSV</a>
+    <a href="/export/excel_csv/invoices">Invoice CSV</a>
+  </div>
+</div>
+<div class="card warning">
+  <b>Note:</b> Tally XML format company/settings ke hisab se badal sakta hai. Pehle dummy company me test karo, phir real data import/export karo.
+</div>
+{% endblock %}

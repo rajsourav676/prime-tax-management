@@ -1,36 +1,39 @@
 {% extends 'base.html' %}{% block content %}
-<h2>Gateway of Prime Tax Management</h2>
-<div class="dash-head">
-  <div class="card">
-    <h2>PRIME TAX MANAGEMENT</h2>
-    <p><b>Complete Accounting & Tax Office Solution</b></p>
-    <p><span class="sound-dot"></span>Professional click sound enabled. Press <kbd>Ctrl+M</kbd> to ON/OFF.</p>
-    <p><b>Welcome : Saurav Kumar Saha</b></p>
-    <p>Current Company : <b>{{company.name}}</b></p>
-    <p>Financial Year : {{company.fy_start}} to {{company.fy_end}}</p>
-    <p class="pro-note">Shortcut Help: Press <kbd>?</kbd> anytime.</p>
+<div class="gateway">
+  <div class="gateway-title">SAURAV KUMAR SAHA</div>
+  <div class="gateway-body">
+    <h3>Masters</h3>
+    <a data-sound href="/masters/group">Create / Alter Groups</a>
+    <a data-sound href="/masters/ledger">Ledger Create / Alter</a>
+    <a data-sound href="/masters/item">Stock Item Create / Alter</a>
+    <a data-sound href="/masters/unit">Unit Create / Alter</a>
+    <a data-sound href="/gst_rates">GST / HSN Master</a>
+
+    <h3>Transactions</h3>
+    <a data-sound class="selected" href="/voucher/Receipt">Vouchers</a>
+    <a data-sound href="/reports/daybook">Day Book</a>
+    <a data-sound href="/invoice/Sales">Sales Invoice</a>
+    <a data-sound href="/invoice/Purchase">Purchase Invoice</a>
+
+    <h3>Utilities</h3>
+    <a data-sound href="/utilities/tally">Tally Import / Export</a>
+    <a data-sound href="/auto_entry">Auto Entry PDF/JPG</a>
+    <a data-sound href="/backup">Backup</a>
+    <a data-sound href="/restore">Restore</a>
+
+    <h3>Reports</h3>
+    <a data-sound href="/reports/balance">Balance Sheet</a>
+    <a data-sound href="/reports/pl">Profit & Loss A/c</a>
+    <a data-sound href="/reports/stock">Stock Summary</a>
+    <a data-sound href="/reports/trial">Trial Balance</a>
+    <a data-sound href="/reports/gst">GST Summary</a>
+    <a data-sound href="/reports/outstanding">Outstanding</a>
+
+    <div class="gateway-extra">
+      <a data-sound href="/clients">Client GST / ITR Tracker</a>
+      <a data-sound href="/checkup">Data Checkup</a>
+      <a data-sound href="/logout">Quit</a>
+    </div>
   </div>
-  <div class="summary status-list">
-    <h3>Company Snapshot</h3>
-    <p><span>Cash Balance</span><b>{{cash}}</b></p>
-    <p><span>Bank Balance</span><b>{{bank}}</b></p>
-    <p><span>Receivable</span><b>{{rec}}</b></p>
-    <p><span>Payable</span><b>{{pay}}</b></p>
-    <p><span>Client Due</span><b>{{clients_due}}</b></p>
-  </div>
-</div>
-<div class=menugrid>
-<a data-sound href=/masters/ledger>Ledger Create/Alter <kbd>Alt+2</kbd></a>
-<a data-sound href=/masters/item>Stock Create/Alter <kbd>Alt+4</kbd></a>
-<a data-sound href=/masters/unit>Unit Create/Alter <kbd>Alt+3</kbd></a>
-<a data-sound href=/voucher/Receipt>Receipt <kbd>F6</kbd></a>
-<a data-sound href=/voucher/Payment>Payment <kbd>F5</kbd></a>
-<a data-sound href=/voucher/Contra>Contra <kbd>F4</kbd></a>
-<a data-sound href=/voucher/Journal>Journal <kbd>F7</kbd></a>
-<a data-sound href=/invoice/Sales>Sales <kbd>F8</kbd></a>
-<a data-sound href=/invoice/Purchase>Purchase <kbd>F9</kbd></a>
-<a data-sound href=/reports/pl>P & L <kbd>Alt+L</kbd></a>
-<a data-sound href=/reports/balance>Balance Sheet <kbd>Alt+B</kbd></a>
-<a data-sound href=/clients>Client Master <kbd>Alt+N</kbd></a>
 </div>
 {% endblock %}

@@ -1,0 +1,17 @@
+{% extends 'base.html' %}{% block content %}
+<h2>Auto Entry from PDF/JPG</h2>
+<div class="card">
+  <h3>Bill/Invoice Upload</h3>
+  <p>PDF ya JPG upload karo. Software best-effort OCR/text read karega, phir preview screen me party, item, GST aur amount verify karke save karna hoga.</p>
+  <form method="post" enctype="multipart/form-data">
+    <label>PDF/JPG/PNG Invoice</label>
+    <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png,.webp" required>
+    <button>Upload & Preview</button>
+  </form>
+</div>
+<div class="card warning"><b>Important:</b> OCR 100% accurate nahi hota. Entry save karne se pehle date, party, item, taxable, GST aur total zaroor check karo.</div>
+<div class="card">
+  <h3>Recent Uploads</h3>
+  <table><tr><th>Date</th><th>File</th><th>Text Read</th></tr>{% for r in rows %}<tr><td>{{r.created_at}}</td><td>{{r.filename}}</td><td>{{'Yes' if r.raw_text else 'Manual Preview'}}</td></tr>{% endfor %}</table>
+</div>
+{% endblock %}
