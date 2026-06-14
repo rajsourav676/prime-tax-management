@@ -1,0 +1,25 @@
+{% extends 'base.html' %}{% block content %}
+<h2>Balance Sheet - Tally Style Detailed</h2>
+<div class="card tally-report">
+  <div class="twocol">
+    <table><tr><th>Liabilities</th><th>Amount</th></tr>
+      {% set last='' %}
+      {% for r in stmt.liabilities %}
+        {% if r.group!=last %}<tr><td><b>{{r.group}}</b></td><td></td></tr>{% set last=r.group %}{% endif %}
+        <tr><td class=indent>{% if r.ledger in ['Net Profit','Net Loss','Closing Stock'] %}{{r.ledger}}{% else %}<a href="/ledger_report/{{r.ledger}}">{{r.ledger}}</a>{% endif %}</td><td class=amt>{{r.amount}}</td></tr>
+      {% endfor %}
+      <tr class=total><td>Total Liabilities</td><td class=amt>{{stmt.total_liab}}</td></tr>
+    </table>
+    <table><tr><th>Assets</th><th>Amount</th></tr>
+      {% set last='' %}
+      {% for r in stmt.assets %}
+        {% if r.group!=last %}<tr><td><b>{{r.group}}</b></td><td></td></tr>{% set last=r.group %}{% endif %}
+        <tr><td class=indent>{% if r.ledger in ['Net Profit','Net Loss','Closing Stock'] %}{{r.ledger}}{% else %}<a href="/ledger_report/{{r.ledger}}">{{r.ledger}}</a>{% endif %}</td><td class=amt>{{r.amount}}</td></tr>
+      {% endfor %}
+      <tr class=total><td>Total Assets</td><td class=amt>{{stmt.total_assets}}</td></tr>
+    </table>
+  </div>
+  {% if stmt.diff|abs > 0.01 %}<div class=flash>Balance Difference: {{stmt.diff}} — Data Checkup run karo.</div>{% endif %}
+</div>
+<p class=hint>Ledger पर click करने से voucher/invoice entry detail खुलेगी. Net Profit/Loss P&L से auto आता है.</p>
+{% endblock %}

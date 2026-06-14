@@ -1,0 +1,39 @@
+{% extends 'base.html' %}{% block content %}
+<div class="gateway">
+  <div class="gateway-title">SAURAV KUMAR SAHA</div>
+  <div class="gateway-body">
+    <h3>Masters</h3>
+    <a data-sound href="/masters/group">Create / Alter Groups</a>
+    <a data-sound href="/masters/ledger">Ledger Create / Alter</a>
+    <a data-sound href="/masters/item">Stock Item Create / Alter</a>
+    <a data-sound href="/masters/unit">Unit Create / Alter</a>
+    <a data-sound href="/gst_rates">GST / HSN Master</a>
+
+    <h3>Transactions</h3>
+    <a data-sound class="selected" href="/voucher/Receipt">Vouchers</a>
+    <a data-sound href="/reports/daybook">Day Book</a>
+    <a data-sound href="/invoice/Sales">Sales Invoice</a>
+    <a data-sound href="/invoice/Purchase">Purchase Invoice</a>
+
+    <h3>Utilities</h3>
+    <a data-sound href="/utilities/tally">Tally Import / Export</a>
+    <a data-sound href="/auto_entry">Auto Entry PDF/JPG</a>
+    <a data-sound href="/backup">Backup</a>
+    <a data-sound href="/restore">Restore</a>
+
+    <h3>Reports</h3>
+    <a data-sound href="/reports/balance">Balance Sheet</a>
+    <a data-sound href="/reports/pl">Profit & Loss A/c</a>
+    <a data-sound href="/reports/stock">Stock Summary</a>
+    <a data-sound href="/reports/trial">Trial Balance</a>
+    <a data-sound href="/reports/gst">GST Summary</a>
+    <a data-sound href="/reports/outstanding">Outstanding</a>
+
+    <div class="gateway-extra">
+      <a data-sound href="/clients">Client GST / ITR Tracker</a>
+      <a data-sound href="/checkup">Data Checkup</a>
+      <a data-sound href="/logout">Quit</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

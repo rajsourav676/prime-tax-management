@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>{{app_name}}</title>
+  <link rel="stylesheet" href='{{url_for("static",filename="style.css")}}'>
+</head>
+<body class="{% if request.endpoint in ['voucher','invoice','reports','ledger_report','edit_row','invoice_payment','auto_entry','tally_utilities','restore','clients','status','masters','gst_rates','checkup'] %}work-wide{% endif %}">
+<div class="tally-topbar">
+  <div class="tally-logo"><span class="script">Prime</span><b>TAX</b><small>MANAGEMENT</small></div>
+  <a data-sound data-key="k" href="/companies"><u>K</u>: Company</a>
+  <a data-sound data-key="d" href="/backup"><u>D</u>: Data</a>
+  <a data-sound data-key="x" href="/utilities/tally"><u>X</u>: Exchange</a>
+  <a data-sound data-key="g" href="/dashboard" class="active"><u>G</u>: Go To</a>
+  <a data-sound data-key="i" href="/utilities/tally"><u>I</u>: Import</a>
+  <a data-sound data-key="e" href="/utilities/tally"><u>E</u>: Export</a>
+  <a data-sound data-key="p" href="#" onclick="window.print();return false"><u>P</u>: Print</a>
+  <a data-sound data-key="f1" href="#" onclick="toggleHelp(true);return false">F1: Help</a>
+  {% if session.user %}<a data-sound data-key="q" href="/logout"><u>Q</u>: Quit</a>{% endif %}
+</div>
+
+{% if session.user %}
+<div class="tally-subbar">Gateway of Prime Tax Management</div>
+<div class="tally-shell">
+  <section class="tally-left">
+    <div class="period-row"><span>CURRENT PERIOD</span><b>{% if company %}{{company.fy_start}} to {{company.fy_end}}{% else %}Create/Open Company{% endif %}</b></div>
+    <div class="period-row right-date"><span>CURRENT DATE</span><b id="todayText"></b></div>
+    <div class="company-head"><span>NAME OF COMPANY</span><span>DATE OF LAST ENTRY</span></div>
+    <div class="company-line">
+      <b>{% if company %}{{company.name}}{% else %}No Company Open{% endif %}</b>
+      <b>{{session.get('last_entry','')}}</b>
+    </div>
+    <div class="welcome-line">Welcome : <b>Saurav Kumar Saha</b></div>
+    {% if company %}<div class="mini-info">GSTIN/PAN and entry data are company-wise.</div>{% endif %}
+  </section>
+
+  <main class="tally-main">
+    {% with m=get_flashed_messages() %}{% if m %}<div class="flash">{% for x in m %}{{x}}{% endfor %}</div>{% endif %}{% endwith %}
+    {% block content %}{% endblock %}
+  </main>
+
+  <aside class="tally-right">
+    <a data-sound href="#" onclick="alert('Date shortcut coming soon');return false">F2: Date</a>
+    <a data-sound href="/companies">F3: Company</a>
+    <a data-sound href="/reports/trial">F4: Trial Balance</a>
+    <a data-sound href="/voucher/Payment">F5: Payment</a>
+    <a data-sound href="/voucher/Receipt">F6: Receipt</a>
+    <a data-sound href="/voucher/Journal">F7: Journal</a>
+    <a data-sound href="/invoice/Sales">F8: Sales</a>
+    <a data-sound href="/invoice/Purchase">F9: Purchase</a>
+    <a data-sound href="/reports/pl">Alt+L: P&L</a>
+    <a data-sound href="/reports/balance">Alt+B: Balance</a>
+    <a data-sound href="/reports/stock">Alt+S: Stock</a>
+    <a data-sound href="/reports/hsn">Alt+H: HSN</a>
+    <a data-sound href="/clients">Alt+N: Client</a>
+    <div class="right-note">Ctrl+A Save<br>Alt+C Create<br>Ctrl+M Sound<br>↑↓←→ Move<br>K/D/X/G/I/E/P/Q Top</div>
+  </aside>
+</div>
+{% else %}
+  {% with m=get_flashed_messages() %}{% if m %}<div class="flash login-flash">{% for x in m %}{{x}}{% endfor %}</div>{% endif %}{% endwith %}
+  {% block logincontent %}{% endblock %}
+{% endif %}
+
+<div id="shortcutHelp" class="modal"><div class="modalbox"><button class="close" data-sound onclick="toggleHelp(false)">×</button><h2>Prime Tax Management Shortcuts</h2><div class="shortgrid"><p><kbd>F4</kbd> Contra</p><p><kbd>F5</kbd> Payment</p><p><kbd>F6</kbd> Receipt</p><p><kbd>F7</kbd> Journal</p><p><kbd>F8</kbd> Sales</p><p><kbd>F9</kbd> Purchase</p><p><kbd>Ctrl+F8</kbd> Credit Note</p><p><kbd>Ctrl+F9</kbd> Debit Note</p><p><kbd>Ctrl+A</kbd> Save Form</p><p><kbd>Alt+C</kbd> Create master in field</p><p><kbd>Alt+2</kbd> Ledger</p><p><kbd>Alt+4</kbd> Stock Item</p><p><kbd>Alt+B</kbd> Balance Sheet</p><p><kbd>K/D/X/G/I/E/P/Q</kbd> Top Menu</p><p><kbd>↑↓←→</kbd> Menu Move</p><p><kbd>Enter</kbd> Open Selected</p></div></div></div>
+<div id="inlineMasterModal" class="modal"><div class="modalbox inlinebox"><button class="close" data-sound onclick="closeInlineMaster()">×</button><h2 id="inlineMasterTitle">Create Master</h2><form id="inlineMasterForm"><div id="inlineMasterFields"></div><button type="submit">Create & Select (Alt+C)</button><p class="minihelp">Tally style: create hone ke baad current field me automatic select ho jayega.</p></form></div></div>
+<script src='{{url_for("static",filename="ptm.js")}}'></script>
+</body>
+</html>

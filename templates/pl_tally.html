@@ -1,0 +1,42 @@
+{% extends 'base.html' %}{% block content %}
+<h2>Profit & Loss A/c - Tally Style Detailed</h2>
+<div class="card tally-report">
+  <h3>Trading Account</h3>
+  <div class="twocol">
+    <table><tr><th>Particulars</th><th>Amount</th></tr>
+      <tr><td>Opening Stock</td><td class=amt>{{stmt.opening_stock}}</td></tr>
+      <tr><td><b>Purchase Accounts</b></td><td class=amt>{{stmt.purchase_net}}</td></tr>
+      {% for r in stmt.purchase_rows %}<tr><td class=indent><a href="/ledger_report/{{r.ledger}}">{{r.ledger}}</a></td><td class=amt>{{r.amount}}</td></tr>{% endfor %}
+      <tr><td><b>Direct Expenses</b></td><td></td></tr>
+      {% for r in stmt.direct_exp_rows %}<tr><td class=indent><a href="/ledger_report/{{r.ledger}}">{{r.ledger}}</a></td><td class=amt>{{r.amount}}</td></tr>{% endfor %}
+      {% if stmt.gross_profit>0 %}<tr><td><b>Gross Profit c/o</b></td><td class=amt>{{stmt.gross_profit}}</td></tr>{% endif %}
+      <tr class=total><td>Total</td><td class=amt>{{ [stmt.trading_debit, stmt.trading_credit]|max }}</td></tr>
+    </table>
+    <table><tr><th>Particulars</th><th>Amount</th></tr>
+      <tr><td><b>Sales Accounts</b></td><td class=amt>{{stmt.sales_net}}</td></tr>
+      {% for r in stmt.sales_rows %}<tr><td class=indent><a href="/ledger_report/{{r.ledger}}">{{r.ledger}}</a></td><td class=amt>{{-r.amount}}</td></tr>{% endfor %}
+      <tr><td>Closing Stock</td><td class=amt>{{stmt.closing_stock}}</td></tr>
+      <tr><td><b>Direct Incomes</b></td><td></td></tr>
+      {% for r in stmt.direct_inc_rows %}<tr><td class=indent><a href="/ledger_report/{{r.ledger}}">{{r.ledger}}</a></td><td class=amt>{{-r.amount}}</td></tr>{% endfor %}
+      {% if stmt.gross_profit<0 %}<tr><td><b>Gross Loss c/o</b></td><td class=amt>{{-stmt.gross_profit}}</td></tr>{% endif %}
+      <tr class=total><td>Total</td><td class=amt>{{ [stmt.trading_debit, stmt.trading_credit]|max }}</td></tr>
+    </table>
+  </div>
+  <h3>Profit & Loss Account</h3>
+  <div class="twocol">
+    <table><tr><th>Expenses</th><th>Amount</th></tr>
+      {% if stmt.gross_profit<0 %}<tr><td>Gross Loss b/f</td><td class=amt>{{-stmt.gross_profit}}</td></tr>{% endif %}
+      <tr><td><b>Indirect Expenses</b></td><td class=amt>{{stmt.indirect_exp}}</td></tr>
+      {% for r in stmt.indirect_exp_rows %}<tr><td class=indent><a href="/ledger_report/{{r.ledger}}">{{r.ledger}}</a></td><td class=amt>{{r.amount}}</td></tr>{% endfor %}
+      {% if stmt.net_profit>0 %}<tr><td><b>Net Profit</b></td><td class=amt>{{stmt.net_profit}}</td></tr>{% endif %}
+    </table>
+    <table><tr><th>Income</th><th>Amount</th></tr>
+      {% if stmt.gross_profit>0 %}<tr><td>Gross Profit b/f</td><td class=amt>{{stmt.gross_profit}}</td></tr>{% endif %}
+      <tr><td><b>Indirect Incomes</b></td><td class=amt>{{stmt.indirect_inc}}</td></tr>
+      {% for r in stmt.indirect_inc_rows %}<tr><td class=indent><a href="/ledger_report/{{r.ledger}}">{{r.ledger}}</a></td><td class=amt>{{-r.amount}}</td></tr>{% endfor %}
+      {% if stmt.net_profit<0 %}<tr><td><b>Net Loss</b></td><td class=amt>{{-stmt.net_profit}}</td></tr>{% endif %}
+    </table>
+  </div>
+</div>
+<p class=hint>Ledger पर click करने से पूरी entry/detail खुलेगी.</p>
+{% endblock %}

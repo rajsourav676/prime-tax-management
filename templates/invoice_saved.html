@@ -1,0 +1,19 @@
+{% extends 'base.html' %}{% block content %}
+<div class="card saved-card">
+  <h2>{{inv.itype}} Saved Successfully</h2>
+  <p><b>Invoice No:</b> {{inv.invno}} &nbsp; <b>Date:</b> {{inv.invdate}}</p>
+  <p><b>Party:</b> {{inv.party}} &nbsp; <b>Total:</b> ₹ {{'%.2f'|format(inv.total or 0)}}</p>
+  <div class="action-row">
+    <a class="btn big" data-sound autofocus href="/invoice_print/{{inv.id}}">Print Invoice</a>
+    <a class="btn" data-sound href="/invoice/{{inv.itype}}">View Invoice List</a>
+    <a class="btn" data-sound href="/invoice/{{inv.itype}}">New {{inv.itype}}</a>
+  </div>
+  <p class="minihelp">Tally style: invoice save ke baad print option. Ctrl+P print page par chalega, ESC se back.</p>
+</div>
+<script>
+document.addEventListener('keydown', function(e){
+  if(e.key==='Enter'){ window.location.href='/invoice_print/{{inv.id}}'; }
+  if(e.key==='Escape'){ window.location.href='/invoice/{{inv.itype}}'; }
+});
+</script>
+{% endblock %}

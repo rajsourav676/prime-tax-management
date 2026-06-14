@@ -1,0 +1,1 @@
+{% extends 'base.html' %}{% block content %}<h2>Data Connection Checkup</h2><div class=card>{% if issues %}<h3>Issues Found</h3><ul>{% for i in issues %}<li>{{i}}</li>{% endfor %}</ul>{% else %}<h3>All main modules are connected ✅</h3><p>Company, Masters, Vouchers, Invoices, Stock, GST and Reports are linked company-wise.</p>{% endif %}</div>{% endblock %}
